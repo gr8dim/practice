@@ -1,0 +1,50 @@
+---
+# tasks file for netdata-nginx-proxy
+- name: Install nginx
+  ansible.builtin.package:
+    name:
+      - nginx
+    state: present
+- name: Nginx start enable
+  ansible.builtin.systemd_service:
+    name: nginx.service
+    state: started
+    enabled: true
+- name: Create Nginx configuration for reverse proxy
+  ansible.builtin.copy:
+    content: |
+      location / {
+         proxy_pass http://127.0.0.1:19999;
+      } 
+    dest: /etc/nginx/default.d/netdata.conf
+    owner: nginx
+    group: nginx
+  register: nginx_conf
+- name: Safe nginx relaod
+  when: nginx_conf.changed
+  block:  
+  - name: Validate nginx config
+    shell: "/usr/sbin/nginx -t"
+    register: result
+  - name: Reload nginx
+    systemd:
+      name: nginx
+      state: reloaded
+    when: result.rc == 0 
+  rescue: 
+  - name: error
+    debug: 
+      msg: "nginx config wrong not reloaded"
+  - meta: end_play
+##
+- name: Test netdata
+  ansible.builtin.uri:
+    url: "http://localhost"
+    method: GET
+  register: _result
+  until: _result.status == 200
+
+- name: Status result code
+  ansible.builtin.debug:
+    msg: "GET http://localhost code = {{ _result.status }}"
+

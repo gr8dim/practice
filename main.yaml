@@ -1,0 +1,6 @@
+- hosts: myhosts
+  gather_facts: no
+  roles: 
+    - os-configure
+    - install-netdata
+    - netdata-nginx-proxy
